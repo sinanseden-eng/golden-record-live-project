@@ -10,6 +10,9 @@
         "broadcast": {
           ".read": "auth != null && auth.token.sessionCode == $session"
         },
+        "shared": {
+          ".read": "auth != null && auth.token.sessionCode == $session"
+        },
         "groups": {
           ".read": "auth != null && auth.token.role == 'teacher' && auth.token.sessionCode == $session",
           "$team": {

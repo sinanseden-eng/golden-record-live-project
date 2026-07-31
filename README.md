@@ -111,3 +111,27 @@ netlify dev
 ## Data and privacy
 
 Use group names rather than students’ full names. Student answers are visible to the teacher and their own group only. The project does not request camera, microphone, location, contacts, or personal email addresses.
+
+## Version 3: six-team parallel lesson
+
+This build changes the classroom flow to a parallel jigsaw investigation:
+
+- Exactly six groups join a fresh session.
+- Groups are assigned Stations 1–6 automatically in joining order.
+- Each group sees only its assigned ten-minute station.
+- Objective puzzle parts are checked by programmed rules; no AI is used.
+- Every open-ended explanation, recommendation, comparison or deduction is sent to the teacher for approval.
+- Approved evidence is published to a shared class evidence board.
+- After all six station reports are approved, the Final Case unlocks for every group.
+- Each group submits its own final interpretation, which is decided by the teacher rather than by the software.
+
+Because the database shape has changed, create a **new live session** after deploying this version. Do not reopen a session created with the earlier four-station build.
+
+### Suggested 45-minute lesson
+
+1. Briefing and joining: 5 minutes
+2. Six stations running simultaneously: 10 minutes
+3. Teacher approval and evidence-briefing preparation: 5–8 minutes
+4. Six short group briefings: 7–10 minutes
+5. Final case: 8–10 minutes
+6. Verdict and debrief: 3–5 minutes

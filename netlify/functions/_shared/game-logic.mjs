@@ -1,6 +1,14 @@
-const lower = value => String(value ?? "").toLowerCase();
-const hasAny = (text, items) => items.some(item => lower(text).includes(item));
-const countAny = (text, items) => items.reduce((n, item) => n + (lower(text).includes(item) ? 1 : 0), 0);
+export const INVESTIGATION_STATIONS = ["s1", "s2", "s3", "s4", "s5", "s6"];
+
+export const stationLabels = {
+  s1: "The Voyager Vault",
+  s2: "The Trend Control Room",
+  s3: "The Soundscape Laboratory",
+  s4: "The Vocabulary Mixing Desk",
+  s5: "The Remix Fingerprint",
+  s6: "The Access Timeline",
+  final: "The Final Case"
+};
 
 export const evidenceForStation = {
   s1: {
@@ -31,6 +39,20 @@ export const evidenceForStation = {
       E: "The corrupted loop was uploaded from STREAM-CONSOLE-4."
     },
     targets: ["music-vocabulary"]
+  },
+  s5: {
+    code: "REMIX-B",
+    evidence: {
+      F: "The corrupted file matched Remix B: 108 BPM, electronic bass, a four-beat loop and a distorted ending."
+    },
+    targets: ["comparison-language", "deduction-language", "music-vocabulary"]
+  },
+  s6: {
+    code: "18:11",
+    evidence: {
+      G: "Sam’s secondary account logged in immediately before the playlist was edited."
+    },
+    targets: ["sequencing-language", "past-tenses", "mystery-language"]
   }
 };
 
@@ -42,75 +64,79 @@ function pending(feedback, details = {}) {
   return { accepted: true, autoApprove: false, feedback, details };
 }
 
-function approved(feedback, details = {}) {
-  return { accepted: true, autoApprove: true, feedback, details };
-}
+const hasLength = (value, minimum) => String(value ?? "").trim().length >= minimum;
 
 export function checkSubmission(station, payload = {}) {
   if (station === "s1") {
     const answers = payload.answers || {};
     const objective = answers.v1 === "b" && answers.v2 === "a" && answers.v3 === "b" && answers.v4 === "b";
     if (!objective) return fail("Recheck the four reading answers before resubmitting.", { objective: false });
-    const reason = String(payload.reason || "");
-    const evidencePhrase = hasAny(reason, ["according to", "the evidence suggests", "contradicts", "contradiction"]);
-    const contrast = hasAny(reason, ["only western", "only classical"]) && hasAny(reason, ["different", "variety", "beethoven", "rock", "mariachi", "genres", "cultures"]);
-    if (reason.trim().length < 45 || !evidencePhrase || !contrast) {
-      return fail("Your reading answers are correct. Revise the explanation so it clearly contrasts Sam’s claim with the different genres or cultures named in the reading and uses evidence language.", { objective: true });
+    if (!hasLength(payload.reason, 25)) {
+      return fail("The factual answers are correct. Add a complete explanation comparing Sam’s claim with the reading.", { objective: true, responseComplete: false });
     }
-    return pending("Objective answers passed. Your explanation is waiting for teacher approval.", { objective: true, languageGate: true });
+    return pending("The factual answers are correct. Your explanation is waiting for teacher judgement.", { objective: true, responseComplete: true });
   }
 
   if (station === "s2") {
     const answers = payload.answers || {};
     const objective = answers.trend1 === "increased dramatically" && answers.trend2 === "fell steadily" && answers.trend3 === "rose gradually" && answers.trend4 === "rose sharply and then declined";
     if (!objective) return fail("At least one graph description is incorrect. Recheck all four trends.", { objective: false });
-    const verb = lower(payload.verbTrend);
-    const noun = lower(payload.nounTrend);
-    const verbOK = verb.includes("streaming") && hasAny(verb, ["increased", "rose", "grew"]) && hasAny(verb, ["dramatically", "significantly", "sharply"]) && !hasAny(verb, ["decreased", "declined", "fell"]);
-    const nounOK = noun.includes("streaming") && hasAny(noun, ["there was", "there has been"]) && hasAny(noun, ["dramatic", "significant", "sharp"]) && hasAny(noun, ["increase", "rise", "growth"]);
-    if (!verbOK || !nounOK) {
-      return fail("The graph choices are correct. Revise both trend sentences: one must use verb + adverb, and the rewrite must use adjective + trend noun.", { objective: true, verbOK, nounOK });
-    }
-    return pending("Trend structures passed the automatic check and are waiting for teacher approval.", { objective: true, verbOK: true, nounOK: true });
+    const complete = hasLength(payload.verbTrend, 12) && hasLength(payload.nounTrend, 12);
+    if (!complete) return fail("The graph choices are correct. Complete both of your own trend sentences.", { objective: true, responseComplete: false });
+    return pending("The graph choices are correct. The teacher will judge the two trend sentences.", { objective: true, responseComplete: true });
   }
 
   if (station === "s3") {
     const answers = payload.answers || {};
     const objective = answers.sound1 === "a" && answers.sound2 === "b" && answers.sound3 === "a";
     if (!objective) return fail("Recheck the three soundscape choices.", { objective: false });
-    const text = lower(payload.recommendation);
-    const recommendation = hasAny(text, ["i would recommend", "i recommend", "i propose that", "how about if", "it might be a good idea"]);
-    const reason = text.includes("because") || text.includes("since");
-    const prediction = hasAny(text, ["it's likely", "it is likely", "i expect", "i'm convinced", "i am convinced", "wouldn't be surprised", "will"]);
-    const soundWords = countAny(text, ["soothing", "relaxing", "upbeat", "energizing", "distracting", "stressful", "tempo", "rhythm", "lyrics", "instrumental"]);
-    if (!recommendation || !reason || !prediction || soundWords < 2) {
-      return fail("Your choices are correct. Revise the report to include a recommendation, a reason, a predicted outcome, and at least two sound-related target words.", { objective: true, recommendation, reason, prediction, soundWords });
+    if (!hasLength(payload.recommendation, 35)) {
+      return fail("The soundscape choices are correct. Complete your recommendation, reason and prediction.", { objective: true, responseComplete: false });
     }
-    return pending("Soundscape choices and language features passed. Your recommendation is waiting for teacher approval.", { objective: true, recommendation: true, reason: true, prediction: true, soundWords });
+    return pending("The soundscape choices are correct. Your recommendation is waiting for teacher judgement.", { objective: true, responseComplete: true });
   }
 
   if (station === "s4") {
     const matches = Array.isArray(payload.matches) ? [...new Set(payload.matches.map(Number))] : [];
-    if (matches.length !== 9 || !matches.every(n => Number.isInteger(n) && n >= 0 && n <= 8)) {
-      return fail("Restore all nine vocabulary connections before submitting.", { matches: matches.length });
+    const objective = matches.length === 9 && matches.every(n => Number.isInteger(n) && n >= 0 && n <= 8);
+    if (!objective) return fail("Restore all nine vocabulary connections before submitting.", { objective: false, matches: matches.length });
+    if (!hasLength(payload.vocabUse, 45)) {
+      return fail("All nine chunks are restored. Write three original sentences using three different chunks.", { objective: true, responseComplete: false });
     }
-    return approved("All nine natural chunks were restored. Evidence E is unlocked automatically.", { matches: 9 });
+    return pending("All nine chunks are correct. The teacher will judge your original sentences.", { objective: true, responseComplete: true });
+  }
+
+  if (station === "s5") {
+    const objective = String(payload.version || "").toUpperCase() === "B";
+    if (!objective) return fail("The selected remix does not match every feature in the corrupted-file report.", { objective: false });
+    if (!hasLength(payload.justification, 35)) {
+      return fail("Remix B is correct. Explain the matching features and rule out at least one other version.", { objective: true, responseComplete: false });
+    }
+    return pending("The remix identification is correct. Your comparison and deduction are waiting for teacher judgement.", { objective: true, responseComplete: true });
+  }
+
+  if (station === "s6") {
+    const order = Array.isArray(payload.order) ? payload.order.map(String) : [];
+    const expected = ["E", "F", "A", "B", "C", "D"];
+    const orderCorrect = order.length === expected.length && order.every((value, index) => value === expected[index]);
+    const accessCorrect = String(payload.access || "") === "Sam Stream";
+    if (!orderCorrect || !accessCorrect) {
+      return fail("Recheck the event order and the account that accessed the system immediately before the edit.", { objective: false, orderCorrect, accessCorrect });
+    }
+    if (!hasLength(payload.explanation, 35)) {
+      return fail("The sequence and account are correct. Explain how the timeline affects the alibi.", { objective: true, responseComplete: false });
+    }
+    return pending("The timeline is correct. Your sequencing and deduction are waiting for teacher judgement.", { objective: true, responseComplete: true });
   }
 
   if (station === "final") {
-    const culprit = String(payload.culprit || "");
-    const evidence = Array.isArray(payload.evidence) ? payload.evidence.map(String) : [];
-    const reason = String(payload.reason || "");
-    const prevention = String(payload.prevention || "");
-    const objective = culprit === "Sam Stream" && evidence.length >= 3 && evidence.includes("E") && (evidence.includes("A") || evidence.includes("B"));
-    if (!objective) return fail("Reconsider the culprit or select at least three relevant clues, including Evidence E and either A or B.", { objective: false });
-    const reasoning = reason.trim().length >= 75 && hasAny(reason, ["according to", "evidence suggests", "contradicts", "contradiction", "therefore"]);
-    const recommendation = hasAny(prevention, ["recommend", "propose", "good idea"]) && hasAny(prevention, ["because", "since"]) && hasAny(prevention, ["it's likely", "it is likely", "i expect", "will"]);
-    const vocabulary = countAny(`${reason} ${prevention}`, ["evidence", "contradiction", "alibi", "sabotage", "transmission", "streaming", "golden record", "playlist", "track", "outcome", "predict", "culprit"]);
-    if (!reasoning || !recommendation || vocabulary < 4) {
-      return fail("Strengthen the final case with evidence-linking language, a justified recommendation, a predicted outcome, and at least four target terms.", { objective: true, reasoning, recommendation, vocabulary });
-    }
-    return pending("The case meets the automatic criteria and is waiting for the teacher’s final verdict.", { objective: true, reasoning: true, recommendation: true, vocabulary });
+    const culprit = String(payload.culprit || "").trim();
+    const evidence = Array.isArray(payload.evidence) ? [...new Set(payload.evidence.map(String))] : [];
+    if (!culprit) return fail("Choose a suspect before submitting the final case.", { responseComplete: false });
+    if (evidence.length < 4) return fail("Select at least four pieces of evidence to support your accusation.", { responseComplete: false, evidenceCount: evidence.length });
+    if (!hasLength(payload.reason, 70)) return fail("Explain how your selected evidence connects to your accusation.", { responseComplete: false });
+    if (!hasLength(payload.prevention, 35)) return fail("Add a complete preventive recommendation and predicted result.", { responseComplete: false });
+    return pending("Your complete case is waiting for the teacher’s final verdict. The system does not decide whether your interpretation is correct.", { responseComplete: true, evidenceCount: evidence.length });
   }
 
   return fail("Unknown station.");
@@ -118,11 +144,12 @@ export function checkSubmission(station, payload = {}) {
 
 export function stationProgress(group = {}) {
   const stations = group.stations || {};
-  const approved = ["s1", "s2", "s3", "s4"].filter(k => stations[k]?.status === "approved").length;
+  const assigned = group.assignedStation;
+  const investigationApproved = Boolean(assigned && stations[assigned]?.status === "approved");
   const finalApproved = stations.final?.status === "approved";
   return {
-    approvedStations: approved,
-    progress: Math.round(((approved + (finalApproved ? 1 : 0)) / 5) * 100),
+    approvedStations: investigationApproved ? 1 : 0,
+    progress: (investigationApproved ? 50 : 0) + (finalApproved ? 50 : 0),
     completed: finalApproved
   };
 }

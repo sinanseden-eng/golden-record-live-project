@@ -1,6 +1,7 @@
 import crypto from "node:crypto";
 import { adminServices } from "./_shared/firebase-admin.mjs";
 import { bodyJson, cleanText, json, errorMessage } from "./_shared/http.mjs";
+import { INVESTIGATION_STATIONS } from "./_shared/game-logic.mjs";
 
 const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
 const makeCode = () => "MUSIC-" + Array.from({ length: 3 }, () => alphabet[crypto.randomInt(alphabet.length)]).join("");
@@ -20,7 +21,7 @@ export default async function handler(req) {
     }
     const teacherName = cleanText(body.teacherName, 50) || "Teacher";
     const pin = cleanText(body.pin, 20);
-    const durationMinutes = Math.min(120, Math.max(30, Number(body.durationMinutes) || 60));
+    const durationMinutes = Math.min(120, Math.max(30, Number(body.durationMinutes) || 45));
     if (!/^\d{4,8}$/.test(pin)) return json({ error: "Choose a 4–8 digit teacher PIN." }, 400);
 
     const { db, auth } = adminServices();
@@ -35,6 +36,7 @@ export default async function handler(req) {
     const now = Date.now();
     const salt = crypto.randomBytes(16).toString("hex");
     const teacherUid = `teacher_${sessionCode.replace(/[^A-Z0-9]/g, "_")}_${crypto.randomBytes(4).toString("hex")}`;
+    const sharedStations = Object.fromEntries(INVESTIGATION_STATIONS.map(station => [station, { status: "unassigned", updatedAt: now }]));
     const updates = {};
     updates[`sessions/${sessionCode}/meta`] = {
       title: "The Golden Record Blackout",
@@ -47,10 +49,13 @@ export default async function handler(req) {
       remainingSeconds: durationMinutes * 60,
       hideCodes: true,
       durationMinutes,
-      maxGroups: 12
+      maxGroups: 6,
+      stationCount: 6,
+      format: "parallel-jigsaw"
     };
     updates[`sessions/${sessionCode}/broadcast`] = { message: "", updatedAt: now };
-    updates[`privateSessions/${sessionCode}`] = { pinHash: hashPin(pin, salt), salt, teacherUid, createdAt: now };
+    updates[`sessions/${sessionCode}/shared`] = { stations: sharedStations, evidence: {}, updatedAt: now };
+    updates[`privateSessions/${sessionCode}`] = { pinHash: hashPin(pin, salt), salt, teacherUid, stationAssignments: {}, createdAt: now };
     await db.ref().update(updates);
     const token = await auth.createCustomToken(teacherUid, { role: "teacher", sessionCode });
     return json({ sessionCode, token, teacherName, durationMinutes });
